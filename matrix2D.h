@@ -3,7 +3,7 @@
 #define matrix2D_HEADER_FILE
 
 /********* Definition of a pointer type for a matrix *********/
-typedef struct Matrix *PtMatrix;
+typedef struct intMatrix2D *PtMatrix;
 
 /******************** Define Error Codes *********************/
 #define OK                  0 /* No error */
@@ -11,6 +11,7 @@ typedef struct Matrix *PtMatrix;
 #define NO_MATRIX           2 /* No matrix */
 #define INDEX_OUT_OF_BOUNDS 3 /* Index out of bounds */
 #define VALUE_OUT_OF_BOUNDS 4 /* Value out of bounds */
+#define NO_ARRAY            5 /* No array */
 
 /********************** Methods Headers **********************/
 
@@ -18,9 +19,10 @@ typedef struct Matrix *PtMatrix;
     Create and initialize a 2D matrix with lines by columns.
 
     Error Values: NO_MEMORY
-    Return: Matrix pointer to the matrix initialized.
+    Return: Matrix pointer to the matrix initialized. NULL - if the matrix
+        wasn't created.
 */
-Matrix matrix2dCreate (int lines, int columns);
+PtMatrix matrix2dCreate (int lines, int columns);
 
 /*
     Creates a copy of a matrix.
@@ -28,7 +30,7 @@ Matrix matrix2dCreate (int lines, int columns);
     Error Values: NO_MEMORY, NO_MATRIX
     Return: Matrix pointer to the new copied matrix.
 */
-Matrix matrix2dCopy (Matrix *pMatrix);
+PtMatrix matrix2dCopy (PtMatrix pMatrix);
 
 /*
     Destroys a matrix.
@@ -36,31 +38,15 @@ Matrix matrix2dCopy (Matrix *pMatrix);
     Error Values: NO_MATRIX
     Return: Void.
 */
-void matrix2dDestroy (Matrix *pMatrix);
+void matrix2dDestroy (PtMatrix *pMatrix);
 
 /*
     Retrieves a value from a matrix on the intersection between a line and a column.
 
     Error Values: NO_MATRIX, INDEX_OUT_OF_BOUNDS
-    Return: int containing the value of the position.
+    Return: Int containing the value of the position.
 */
-int matrix2dGetValue (Matrix *pmatrix, int line, int column);
-
-/*
-    Retrieves a complete line of a matrix.
-
-    Error Values: NO_MATRIX, INDEX_OUT_OF_BOUNDS
-    Return: Int pointer to the line.
-*/
-int* matrix2dGetLine (Matrix *pmatrix, int line);
-
-/*
-    Retrieves a complete column of a matrix.
-
-    Error Values: NO_MATRIX, INDEX_OUT_OF_BOUNDS
-    Return: Int pointer to the column.
-*/
-int* matrix2dGetColumn (Matrix *pmatrix, int column);
+int matrix2dGetValue (PtMatrix pMatrix, int line, int column);
 
 /*
     Changes the value of a position (intersection between a line and a column) in a matrix.
@@ -68,15 +54,46 @@ int* matrix2dGetColumn (Matrix *pmatrix, int column);
     Error Values: NO_MATRIX, INDEX_OUT_OF_BOUNDS, VALUE_OUT_OF_BOUNDS
     Return: Void.
 */
-void matrix2dSetValue (Matrix *pmatrix, int line, int column, int value);
+void matrix2dSetValue (PtMatrix pMatrix, int line, int column, int value);
 
 /*
-    Outputs the matrix to the stdout.
+    Retrieves a complete line of a matrix.
+
+    Error Values: NO_MATRIX, INDEX_OUT_OF_BOUNDS
+    Return: Int pointer to the line.
+*/
+int* matrix2dGetLine (PtMatrix pMatrix, int line);
+
+/*
+    Changes the values of an entire line of a matrix.
+
+    Error Values: NO_MATRIX, INDEX_OUT_OF_BOUNDS, NO_ARRAY
+    Return: Void.
+*/
+void matrix2dSetLine (PtMatrix pMatrix, int line, int lineValues[]);
+
+/*
+    Retrieves a complete column of a matrix.
+
+    Error Values: NO_MATRIX, INDEX_OUT_OF_BOUNDS
+    Return: Int pointer to the column.
+*/
+int* matrix2dGetColumn (PtMatrix pMatrix, int column);
+
+/*
+    Outputs the matrix to the stdout. The matrix is on the same format as the input matrix.
 
     Error Values: NO_MATRIX
     Return: Void.
 */
-void matrix2dPrint (Matrix *pmatrix);
+void matrix2dPrint (PtMatrix pMatrix);
+
+/*
+    Outputs the matrix to the stdout, but more easy to read.
+    Error Values: NO_MATRIX
+    Return: Void.
+*/
+void matrix2dDebugPrint (PtMatrix pMatrix);
 
 /*
     Compares the values in the positions of each matrix.
@@ -84,6 +101,6 @@ void matrix2dPrint (Matrix *pmatrix);
     Error Values: No_MATRIX
     Return: 0 - if the matrixs are equal, -1 - if the matrixs are not equal
 */
-int matrix2dCompare (Matrix *pmatrixA, Matrix *pmatrixB);
+int matrix2dCompare (PtMatrix pMatrixA, PtMatrix pMatrixB);
 
 #endif
