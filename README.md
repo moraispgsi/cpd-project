@@ -16,6 +16,7 @@ The input file contains the sudoku instance matrix.
  
    
 Example of an input file containing a sudoku instance matrix:
+Note: The input file must have a empty line on the end
 
     3
     0 0 0 0 0 0 0 0 0

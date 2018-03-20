@@ -19,7 +19,6 @@ PtMatrix initialize2DMatrix () {
 /*************** Implement matrix2D.h Functions ****************/
 
 PtMatrix matrix2dCreate (int lines, int columns) {
-    printf("Entreiu");
     PtMatrix matrix2D = initialize2DMatrix ();
     if (matrix2D == NULL) {
         // No memory is available, update error
@@ -91,7 +90,6 @@ int* matrix2dGetLine (PtMatrix pMatrix, int line) {
     return &(pMatrix->data[position]); // reference to the line
 }
 
-// MISSING
 void matrix2dSetLine (PtMatrix pMatrix, int line, int lineValues[]) {
     if (pMatrix == NULL) {
         return;
@@ -110,7 +108,7 @@ void matrix2dSetLine (PtMatrix pMatrix, int line, int lineValues[]) {
 
 // MISSING
 int* matrix2dGetColumn (PtMatrix pMatrix, int column) {
-
+    return NULL;    // not needed for now
 }
 
 void matrix2dPrint (PtMatrix pMatrix) {
