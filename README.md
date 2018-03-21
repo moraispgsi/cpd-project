@@ -5,18 +5,23 @@ This project intends to implement a serial and two different parallel implementa
 #### Serial Implementation
 
 Compile the sourc code:
-    
-    gcc matrix2D.c sudoku-serial.c -o sudoku-serial
+```
+gcc matrix2D.c sudoku-serial.c -o sudoku-serial
+```
 
 Execute the source code:
 The input file contains the sudoku instance matrix. 
+```
+./sudoku-serial.exe < input_file
+```
 
-    ./sudoku-serial.exe < input_file
- 
- 
+Example of usaga:
+```
+./sudoku-serial.exe test-cases\example-2.in
+```
    
 Example of an input file containing a sudoku instance matrix:
-Note: The input file must have a empty line on the end
+Note: The input file currently must have a empty line on the end
 
     3
     0 0 0 0 0 0 0 0 0

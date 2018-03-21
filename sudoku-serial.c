@@ -42,7 +42,7 @@ int main (int argc, char* argv[]) {
     loadMatrixFromFile (argv[1]); // receive matrix
     printf ("square root: %d", sqrN);
     matrix2dDebugPrint (matrix);
-
+    matrix2dDestroy (&matrix);
     //int* lineZero = matrix2dGetLine (matrix, 1);
     //printf ("\nval: %d\n", lineZero[3]);
     //printf ("\nval: %d\n", lineZero[4]);
@@ -108,6 +108,9 @@ void loadMatrixFromFile (char* file_name) {
             }
         }
     }
+    if (fclose (input_file) != 0) {
+        printf ("Error closing file");
+    }
 }
 
 /*
@@ -128,6 +131,10 @@ int numberOfLines (char* file_name) {
         if (character == '\n') {
             lines++;
         }
+    }
+    if (fclose (input_file) != 0) {
+        printf ("Error closing file");
+        return -1;  // 
     }
     return lines;
 }
