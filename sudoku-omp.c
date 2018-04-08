@@ -5,12 +5,16 @@
 #include <stdlib.h>
 #include <string.h>
 #include <omp.h>
+#include <math.h>
 
 
 ////////////////////////////////////////////////////////////
 //// Structures
 ////////////////////////////////////////////////////////////
 struct Puzzle {
+    int row;
+    int col;
+    int depth;
 	int root_n;
 	int n;
 	int ** matrix;
@@ -29,6 +33,8 @@ typedef int bool;
 ////////////////////////////////////////////////////////////
 #define false 0
 #define true 1
+// get the size of elements on an array
+#define NELEMS(x)  (sizeof(x) / sizeof((x)[0]))
 
 
 ////////////////////////////////////////////////////////////
@@ -36,9 +42,9 @@ typedef int bool;
 ////////////////////////////////////////////////////////////
 static double _start_;
 static double _end_;
+static int _offset_ = 10;
 static bool _time_flag_ = false;
 static bool _time_only_flag_ = false;
-
 
 ////////////////////////////////////////////////////////////
 //// Function Prototypes  
@@ -51,6 +57,8 @@ bool check_row(Puzzle * puzzle, int row, int number);
 bool is_valid(Puzzle * puzzle, int row, int column, int number);
 bool find_empty(Puzzle * puzzle, int * row, int * column);
 bool solve(Puzzle * puzzle);
+Puzzle * copy(Puzzle * puzzle);
+void cleanPuzzle(Puzzle * puzzle);
 void end_on_solution_found(Puzzle * puzzle);
 
 
@@ -59,7 +67,7 @@ void end_on_solution_found(Puzzle * puzzle);
 ////////////////////////////////////////////////////////////
 
 /**
- * Serial Sudoku Solver.
+ * Parallel Sudoku Solver using OpenMP
  *
  * @param argc Number of command line arguments.
  * @param argv Array of command line arguments.
@@ -92,8 +100,8 @@ int main(int argc, char *argv[]){
 	filename = argv[1];
 
 	// Open file in read mode
-	if ((file_input = fopen(filename, "r")) == NULL){
-		printf("ERROR: Could not open file %s\n", filename);
+	if ((file_input = fopen(filename,"r")) == NULL){
+		printf("ERROR: Could not open file %s\n",filename);
 		exit(EXIT_FAILURE);
 	}
 
@@ -114,71 +122,58 @@ int main(int argc, char *argv[]){
 	Puzzle * puzzle = malloc(sizeof(Puzzle));
 	puzzle->n = n;
 	puzzle->root_n = root_n;
-
+	puzzle->depth = 1;
+	puzzle->row = 0;
+	puzzle->col = 0;
 	puzzle->matrix = (int**) malloc(n * sizeof(int*));
-
-	for (int i = 0; i < n; ++i){
+    int i;
+	for (i = 0; i < n; ++i){
 		puzzle->matrix[i] = (int * )malloc(n * sizeof(int));
 	}
 
-
 	// Read matrix from the file
 	int cursor;
-	int row = 0, col = 0;
-
-	for (int i = 0; i < n; ++i){
-		for (int j = 0; j < n; ++j){
-			fscanf(file_input, "%d", &puzzle->matrix[i][j]);
+	int row = 0, col = 0, j;
+	for (i = 0; i < n; ++i){
+		
+		for (j = 0; j < n; ++j){
+			fscanf(file_input,"%d",&puzzle->matrix[i][j]);
 		}
-    		fscanf(file_input, "\n");
+		fscanf(file_input, "\n");
 	}
 	// ======================================
 
 	// Close file
 	fclose(file_input);
-	
-	if(solve(puzzle)){
 
-		/* Write solution to .out file. */
-		char * name_out;
-		
-		// Split file name
-		filename[strlen(filename) - 3 ] = '\0';
-		name_out = (char *) malloc(sizeof(char) * (strlen(filename) + 4));
-		strcpy(name_out, filename);
-		strcat(name_out, ".out");
 
-		// Open file in write mode
-		file_output = fopen(name_out, "w");
-        // output puzzle to file
-		print_puzzle_to_file(file_output, puzzle);
-		// Close output file
-		fclose(file_output);
-    
-        end_on_solution_found(puzzle);
+    //////////////////////////////////////////////////////////
+    ////// START
+    //////////////////////////////////////////////////////////
+    //omp_set_num_threads(2);
 
-	} else {
-        // if no solution was found
-        _end_ = omp_get_wtime();
-        if (_time_only_flag_) {
-            printf("Elapsed time: %f (s)\n", _end_ - _start_);
-        } else if (_time_flag_) {
-            printf("No solution\n");
-            printf("Elapsed time: %f (s)\n", _end_ - _start_);
-        } else {
-            printf("No solution\n");
+    // initialize threads
+    #pragma omp parallel
+    {
+        //printf("nº threads: %d\n", omp_get_num_threads());
+        // only one of the threads initiate the solve method
+        #pragma omp single
+        {
+            if(!solve(puzzle)){
+                // if no solution was found
+	            _end_ = omp_get_wtime();
+                if (_time_only_flag_) {
+                    printf("Elapsed time: %f (s)\n", _end_ - _start_);
+                } else if (_time_flag_) {
+                    printf("No solution\n");
+                    printf("Elapsed time: %f (s)\n", _end_ - _start_);
+                } else {
+                    printf("No solution\n");
+                }
+        	}
         }
-	}
+    }
 
-    // ======================================
-    /** Free puzzle memory */
-	for (int i = 0; i <  n ; ++i){
-		free(puzzle->matrix[i]);
-	}
-	free(puzzle->matrix);
-	free(puzzle);
-    // ======================================
-    
 	return EXIT_SUCCESS;
 }
 
@@ -188,14 +183,17 @@ int main(int argc, char *argv[]){
 * @param puzzle Sudoku puzzle data structure.
 */
 void debug_puzzle(Puzzle * puzzle){
-    if (puzzle != NULL) {
-        int n = puzzle->n;
-        int i, j;
-        for (i = 0; i < n; ++i){
-            for (j = 0; j < n; ++j){
-                printf("%d ", puzzle->matrix[i][j]);
+    #pragma omp critical 
+    {
+        if (puzzle != NULL) {
+            int n = puzzle->n;
+            int i, j;
+            for (i = 0; i < n; ++i){
+                for (j = 0; j < n; ++j){
+                    printf("%d ", puzzle->matrix[i][j]);
+                }
+                printf("\n");
             }
-            printf("\n");
         }
     }
 }
@@ -228,14 +226,14 @@ void print_puzzle_to_file(FILE * file, Puzzle * puzzle){
  */
 bool check_grid(Puzzle * puzzle, int row, int column, int number){
     int i, j;
-	for (i = 0; i < puzzle->root_n; ++i){
-		for (j = 0; j < puzzle->root_n; ++j){
-			if (puzzle->matrix[i + row][j + column] == number){
-				return true;
-			}
-		}
-	}
-	return false;
+    for (i = 0; i < puzzle->root_n; ++i){
+        for (j = 0; j < puzzle->root_n; ++j){
+            if (puzzle->matrix[i + row][j + column] == number){
+                return true;
+            }
+        }
+    }
+    return false;
 }
 
 /**
@@ -248,12 +246,12 @@ bool check_grid(Puzzle * puzzle, int row, int column, int number){
  */
 bool check_column(Puzzle * puzzle, int column, int number){
     int i;
-	for (i = 0; i < puzzle->n; i++){
-		if(puzzle->matrix[i][column] == number){
-			return true;
-		}
-	}
-	return false;
+    for (i = 0; i < puzzle->n; ++i){
+        if(puzzle->matrix[i][column] == number){
+                return true;
+        }
+    }
+    return false;
 }
 
 /**
@@ -265,13 +263,13 @@ bool check_column(Puzzle * puzzle, int column, int number){
  * @return Returns true if the number is in the row.
  */
 bool check_row(Puzzle * puzzle, int row, int number){
-	int i;
+    int i;
     for (i = 0; i < puzzle->n; ++i){
-		if (puzzle->matrix[row][i] == number){
-			return true;
-		}
-	}
-	return false;
+        if (puzzle->matrix[row][i] == number){
+            return true;
+        }
+    }
+    return false;
 }
 
 /**
@@ -284,9 +282,9 @@ bool check_row(Puzzle * puzzle, int row, int number){
  * @return Returns true if the number is not valid.
  */
 bool is_valid(Puzzle * puzzle, int row, int column, int number){
-	return !(check_row(puzzle, row, number)) && 
-		   !(check_column(puzzle, column, number)) && 
-		   !(check_grid(puzzle, row - row % puzzle->root_n, column - column % puzzle->root_n, number));
+    return !(check_row(puzzle, row, number)) && 
+           !(check_column(puzzle, column, number)) && 
+           !(check_grid(puzzle, row - row % puzzle->root_n, column - column % puzzle->root_n, number));
 }
 
 /**
@@ -298,14 +296,14 @@ bool is_valid(Puzzle * puzzle, int row, int column, int number){
  * @return Returns true if the puzzle has an empty position.
  */
 bool find_empty(Puzzle * puzzle, int * row, int * column){
-	for (*row = 0; *row < puzzle->n; (*row)++){
-		for (*column = 0; *column < puzzle->n; (*column)++){
-			if (puzzle->matrix[*row][*column] == 0){
-				return true;
-			}
-		}
-	}
-	return false;
+    for (*row = 0; *row < puzzle->n; (*row)++){
+        for (*column = 0; *column < puzzle->n; (*column)++){
+            if (puzzle->matrix[*row][*column] == 0){
+                return true;
+            }
+        }
+    }
+    return false;
 }
 
 /**
@@ -314,34 +312,98 @@ bool find_empty(Puzzle * puzzle, int * row, int * column){
  * @param puzzle Sudoku puzzle data structure.
  * @return Returns true if the sudoku has a solution.
  */
-bool solve(Puzzle * puzzle){
-	int i, row = 0, column = 0;
+bool solve(Puzzle * puzzle) {
+
+    int row = 0, col = 0;
+    int depth = puzzle->depth;
 
 	// Check if puzzle is complete
-	if (!find_empty(puzzle, &row, &column)){
-        // solution found
+	if (!find_empty(puzzle, &row, &col)){
 		return true;
 	}
-
-    // Iterate over the N cells of a sudoku puzzle
+    
+    int i;
 	for (i = 1; i <= puzzle->n; ++i){
 
 		// Check if number can be placed in a cell
-		if (is_valid(puzzle, row, column, i)){
-			puzzle->matrix[row][column] = i;
-
-            // call solve with the new value on the sudoku puzzle
-			if (solve(puzzle)){
-                // solution found
-				return true;
-			}
-
-            // if the change didn't led to a solution set it to zero to be changed by other value
-			puzzle->matrix[row][column] = 0;
+		if (is_valid(puzzle, row, col, i)){
+			puzzle->matrix[row][col] = i;
+            puzzle->depth = depth + 1;
+            
+            // if the depth is lower then a offset create a task
+            if(puzzle->depth < _offset_) {
+                // creates a new copy of the sudoku puzzle
+                Puzzle * successor = copy(puzzle);
+                // creates a task
+                #pragma omp task default(shared) firstprivate(row, col, depth, successor)
+                {
+                    //Proceeds with a copy as a task
+                    if (solve(successor)){
+                        end_on_solution_found(successor);
+        			}
+                }
+            } else {    // continues the program in serial mode
+                if (solve(puzzle)){
+    			    end_on_solution_found(puzzle);
+        		}
+            }
+            
+            // the value on the position didn't reach the solution, so change it to zero
+			puzzle->matrix[row][col] = 0;
 		}
 	}
-    // no solution found
+	
+	#pragma omp taskwait
+
 	return false;
+
+}
+
+/**
+ * Creates a new puzzle based on a puzzle received as argument.
+ * 
+ * @param Puzzle Sudoku puzzle data structure to copy. 
+ * @return Returns a puzzle data data structure if the puzzle received
+ * is not NULL if it is NULL then returns NULL.
+ */
+Puzzle * copy(Puzzle * puzzle) {
+    if (puzzle == NULL) {
+        return NULL;
+    }
+    Puzzle * copyPuzzle = malloc(sizeof(Puzzle));
+    copyPuzzle->depth = puzzle->depth;
+    copyPuzzle->row = puzzle->row;
+    copyPuzzle->col = puzzle->col;
+    copyPuzzle->root_n = puzzle->root_n;
+    copyPuzzle->n = puzzle->n;
+    copyPuzzle->matrix = (int**) malloc(puzzle->n * sizeof(int*));          // alloc space for matrix
+    int i,j;
+    // manual copy
+    for (i = 0; i < puzzle->n; ++i){
+        copyPuzzle->matrix[i] = (int * )malloc(puzzle->n * sizeof(int));    // alloc space
+        for (j = 0; j < puzzle->n; ++j){
+            copyPuzzle->matrix[i][j] = puzzle->matrix[i][j];                // copy values
+        }
+    }
+    return copyPuzzle;
+}
+
+/**
+ * Free's a Sudoku puzzle structure.
+ * 
+ * @param puzzle Sudoku puzzle data structure.
+ */
+void cleanPuzzle (Puzzle * puzzle) {
+    if (puzzle != NULL) {
+        int n = puzzle->n;
+        int i;
+        // Free memory   
+        for (i = 0; i <  n ; i++){
+            free(puzzle->matrix[i]);
+        }
+        free(puzzle->matrix);
+        free(puzzle);
+    }
 }
 
 /**
