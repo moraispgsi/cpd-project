@@ -1,6 +1,7 @@
 ////////////////////////////////////////////////////////////
 //// Includes
 ////////////////////////////////////////////////////////////
+#include <time.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -12,10 +13,8 @@
 //// Structures
 ////////////////////////////////////////////////////////////
 struct Puzzle {
-    int row;
-    int col;
-    int depth;
 	int root_n;
+	int depth;
 	int n;
 	int ** matrix;
 };
@@ -45,6 +44,8 @@ static double _end_;
 static int _offset_ = 10;
 static bool _time_flag_ = false;
 static bool _time_only_flag_ = false;
+static int _tasks_in_process_ = 0;
+static int _states_searched_ = 0;
 
 ////////////////////////////////////////////////////////////
 //// Function Prototypes  
@@ -123,8 +124,6 @@ int main(int argc, char *argv[]){
 	puzzle->n = n;
 	puzzle->root_n = root_n;
 	puzzle->depth = 1;
-	puzzle->row = 0;
-	puzzle->col = 0;
 	puzzle->matrix = (int**) malloc(n * sizeof(int*));
     int i;
 	for (i = 0; i < n; ++i){
@@ -166,6 +165,7 @@ int main(int argc, char *argv[]){
                     printf("Elapsed time: %f (s)\n", _end_ - _start_);
                 } else if (_time_flag_) {
                     printf("No solution\n");
+                    printf("Searched %d states in total.\n", _states_searched_);
                     printf("Elapsed time: %f (s)\n", _end_ - _start_);
                 } else {
                     printf("No solution\n");
@@ -313,7 +313,7 @@ bool find_empty(Puzzle * puzzle, int * row, int * column){
  * @return Returns true if the sudoku has a solution.
  */
 bool solve(Puzzle * puzzle) {
-
+    _states_searched_ ++;
     int row = 0, col = 0;
     int depth = puzzle->depth;
 
@@ -329,18 +329,34 @@ bool solve(Puzzle * puzzle) {
 		if (is_valid(puzzle, row, col, i)){
 			puzzle->matrix[row][col] = i;
             puzzle->depth = depth + 1;
-            
-            // if the depth is lower then a offset create a task
-            if(puzzle->depth < _offset_) {
+            bool should_copy = false;
+            #pragma omp critical 
+            {
+                // If there are too few tasks available
+                if(_tasks_in_process_ < omp_get_num_threads() - 1 && 
+                    puzzle->depth < _offset_){
+                    should_copy = true;
+                    _tasks_in_process_ ++;
+                } else {
+                    should_copy = false;
+                }
+            } 
+ 
+            if(should_copy) {
+             
                 // creates a new copy of the sudoku puzzle
                 Puzzle * successor = copy(puzzle);
                 // creates a task
-                #pragma omp task default(shared) firstprivate(row, col, depth, successor)
+                #pragma omp task default(shared) firstprivate(row, col, successor)
                 {
+                    
                     //Proceeds with a copy as a task
                     if (solve(successor)){
                         end_on_solution_found(successor);
         			}
+        			
+        			_tasks_in_process_ --;
+        			
                 }
             } else {    // continues the program in serial mode
                 if (solve(puzzle)){
@@ -370,22 +386,20 @@ Puzzle * copy(Puzzle * puzzle) {
     if (puzzle == NULL) {
         return NULL;
     }
-    Puzzle * copyPuzzle = malloc(sizeof(Puzzle));
-    copyPuzzle->depth = puzzle->depth;
-    copyPuzzle->row = puzzle->row;
-    copyPuzzle->col = puzzle->col;
-    copyPuzzle->root_n = puzzle->root_n;
-    copyPuzzle->n = puzzle->n;
-    copyPuzzle->matrix = (int**) malloc(puzzle->n * sizeof(int*));          // alloc space for matrix
+    Puzzle * copy_puzzle = malloc(sizeof(Puzzle));
+    copy_puzzle->root_n = puzzle->root_n;
+    copy_puzzle->n = puzzle->n;
+    copy_puzzle->depth = puzzle->depth;
+    copy_puzzle->matrix = (int**) malloc(puzzle->n * sizeof(int*));          // alloc space for matrix
     int i,j;
     // manual copy
     for (i = 0; i < puzzle->n; ++i){
-        copyPuzzle->matrix[i] = (int * )malloc(puzzle->n * sizeof(int));    // alloc space
+        copy_puzzle->matrix[i] = (int * )malloc(puzzle->n * sizeof(int));    // alloc space
         for (j = 0; j < puzzle->n; ++j){
-            copyPuzzle->matrix[i][j] = puzzle->matrix[i][j];                // copy values
+            copy_puzzle->matrix[i][j] = puzzle->matrix[i][j];                // copy values
         }
     }
-    return copyPuzzle;
+    return copy_puzzle;
 }
 
 /**
@@ -417,6 +431,7 @@ void end_on_solution_found(Puzzle * puzzle) {
         printf("Elapsed time: %f (s)\n", _end_ - _start_);
     } else if (_time_flag_) {
         debug_puzzle(puzzle);
+        printf("Searched %d states in total.\n", _states_searched_);
         printf("Elapsed time: %f (s)\n", _end_ - _start_);
     } else {
         debug_puzzle(puzzle);

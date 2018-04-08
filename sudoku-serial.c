@@ -38,7 +38,7 @@ static double _start_;
 static double _end_;
 static bool _time_flag_ = false;
 static bool _time_only_flag_ = false;
-
+static int _states_searched_ = 0;
 
 ////////////////////////////////////////////////////////////
 //// Function Prototypes  
@@ -116,8 +116,8 @@ int main(int argc, char *argv[]){
 	puzzle->root_n = root_n;
 
 	puzzle->matrix = (int**) malloc(n * sizeof(int*));
-
-	for (int i = 0; i < n; ++i){
+	int i;
+	for (i = 0; i < n; ++i){
 		puzzle->matrix[i] = (int * )malloc(n * sizeof(int));
 	}
 
@@ -125,9 +125,9 @@ int main(int argc, char *argv[]){
 	// Read matrix from the file
 	int cursor;
 	int row = 0, col = 0;
-
-	for (int i = 0; i < n; ++i){
-		for (int j = 0; j < n; ++j){
+	int j;
+	for (i = 0; i < n; ++i){
+		for (j = 0; j < n; ++j){
 			fscanf(file_input, "%d", &puzzle->matrix[i][j]);
 		}
     		fscanf(file_input, "\n");
@@ -164,6 +164,7 @@ int main(int argc, char *argv[]){
             printf("Elapsed time: %f (s)\n", _end_ - _start_);
         } else if (_time_flag_) {
             printf("No solution\n");
+            printf("Searched %d states in total.\n", _states_searched_);
             printf("Elapsed time: %f (s)\n", _end_ - _start_);
         } else {
             printf("No solution\n");
@@ -172,7 +173,7 @@ int main(int argc, char *argv[]){
 
     // ======================================
     /** Free puzzle memory */
-	for (int i = 0; i <  n ; ++i){
+	for (i = 0; i <  n ; ++i){
 		free(puzzle->matrix[i]);
 	}
 	free(puzzle->matrix);
@@ -315,6 +316,7 @@ bool find_empty(Puzzle * puzzle, int * row, int * column){
  * @return Returns true if the sudoku has a solution.
  */
 bool solve(Puzzle * puzzle){
+    _states_searched_ ++;
 	int i, row = 0, column = 0;
 
 	// Check if puzzle is complete
@@ -355,6 +357,7 @@ void end_on_solution_found(Puzzle * puzzle) {
         printf("Elapsed time: %f (s)\n", _end_ - _start_);
     } else if (_time_flag_) {
         debug_puzzle(puzzle);
+        printf("Searched %d states in total.\n", _states_searched_);
         printf("Elapsed time: %f (s)\n", _end_ - _start_);
     } else {
         debug_puzzle(puzzle);
