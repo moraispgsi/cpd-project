@@ -37,11 +37,11 @@ If the `-t`and the `-to` flags are passed as arguments the `-t` will be ignored.
 **On Linux:**  
 * Serial
     * `./sudoku-serial [input-filename]`  
-    * Example: `./sudoku-serial.exe /input/9x9.in`
+    * Example: `./sudoku-serial ./input/9x9.in`
 
 * Parallel  
     * `./sudoku-omp.exe [input-filename]`  
-    * Example: `./sudoku-omp.exe /input/9x9.in`
+    * Example: `./sudoku-omp ./input/9x9.in`
 
 
 #### How to change the number on the parallel version
